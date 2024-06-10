@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { addPost } from './postSlice'
+import { createPost } from './postSlice'
 import { getAllUser } from '../../users/userSlice'
+import { nanoid } from '@reduxjs/toolkit'
 
 const NewPost = () => {
     const [title,setTitle] = useState('')
@@ -27,11 +28,22 @@ const NewPost = () => {
         e.preventDefault()
 
         if(createOk){
-            dispatch(addPost(
-                title, 
-                content,
-                userId
-            ))
+            dispatch(createPost({
+                id:nanoid(),
+                title,
+                body:content,
+                userId,
+                date:(new Date()).toISOString(),
+                        reactions:{
+                            thumbUp:0,
+                            funny:0,
+                            wow:0,
+                            sad:0,
+                            heart:0,
+                            angry:0
+                        }
+
+            }))
             setTitle('')
             setContent('')
             setUserId('')

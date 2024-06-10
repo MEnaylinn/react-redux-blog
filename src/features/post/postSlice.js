@@ -1,78 +1,51 @@
-import { createSlice, nanoid } from "@reduxjs/toolkit";
+import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import axios from "axios";
 import { sub } from "date-fns";
 
-const initialState=[
-    {
-        id:'p1',
-        title:'Let learn redux',
-        content:'Hello guy, learn redux for global variable instead of context',
-        date: sub(new Date(),{minutes:10}).toISOString(),
-        userId : 'u1',
-        reactions:{
-            thumbUp:0,
-            funny:0,
-            wow:0,
-            sad:0,
-            heart:0,
-            angry:0
+const GET_POSTS='https://jsonplaceholder.typicode.com/posts'
+
+export const fetchAllPosts=createAsyncThunk('fetchAllPosts',async () =>{
+    const response= await axios.get(GET_POSTS)
+    return [...response.data]
+})
+
+export const createPost = createAsyncThunk('createPost',async (post)=>{
+    console.log(post)
+    const response = await axios.post(GET_POSTS,post,{
+        headers : {
+            'Content-Type':'application/json'
         }
+    })
+    return response
 
-    },
-    {
-        id:'p2',
-        title:'Let learn Java',
-        content:'Hello guy, learn Java for OOP Development',
-        date: sub(new Date(),{hours:1}).toISOString(),
-        userId : 'u2',
-        reactions:{
-            thumbUp:0,
-            funny:0,
-            wow:0,
-            sad:0,
-            heart:0,
-            angry:0
-        }
+})
 
+const initialState={
+    posts:[],
+    status:'idle',
+    error: null 
 
-    },
-    {
-        id:'p3',
-        title:'Let learn React',
-        content:'Hello guy, learn React for web design',
-        date: sub(new Date(),{days:2}).toISOString(),
-        userId : 'u3',
-        reactions:{
-            thumbUp:0,
-            funny:0,
-            wow:0,
-            sad:0,
-            heart:0,
-            angry:0
-        }
-
-
-    }
-]
+}
  
 const postSlice = createSlice({
     name:'postSlice',
     initialState,
-    reducers:{
-        addPost:{
-            reducer(state,action){
-                console.log(`Payload id = ${action.payload.id}`)
-                state.push(action.payload)
 
-                
-            },
-            prepare(title,content,userId){
-                return{
-                    payload : {
-                        id:nanoid(),
-                        title,
-                        content,
-                        userId,
-                        date:new Date().toISOString(),
+    
+    extraReducers(builder){
+        builder
+            .addCase(fetchAllPosts.fulfilled,(state,action)=>{
+                const loadedPosts=action.payload
+                console.log(loadedPosts)
+
+                let i=0;
+                const posts = loadedPosts.map(post =>{
+                    return{
+                        id:post.id,
+                        title:post.title,
+                        content:post.body,
+                        userId:post.userId,
+                        date:sub(new Date(),{minutes : i++ }).toISOString(),
                         reactions:{
                             thumbUp:0,
                             funny:0,
@@ -81,25 +54,41 @@ const postSlice = createSlice({
                             heart:0,
                             angry:0
                         }
+                        
                     }
-                }
-
-            }
-        },
-        addReaction :(state,action) => {
-            const {postId,reactionName}= action.payload
-            const exitedPost=state.find((post)=>post.id === postId)
-            if(exitedPost){
-                exitedPost.reactions[reactionName]++
-            }else{
-                console.log(`post with id =${postId} does no exit`)
-            }
+                })
+                state.posts= [...posts]
+                state.status='success'
             
-        }
-
-          
+            })
+            .addCase(fetchAllPosts.pending,(state)=>{
+                state.status='loading'
+            })
+            .addCase(fetchAllPosts.rejected,(state,action)=>{
+                state.status='failed'
+                state.error=action.error
+                console.log(action.error)
+            })
+            .addCase(createPost.fulfilled,(state,action)=>{
+                const response = action.payload
+                const status=response.status
+                const loadedPost=response.data
+                const post={
+                    content:loadedPost.body,
+                    ...loadedPost
+                }
+                if(status === 201){
+                    console.log('post created')
+                    state.posts=[post,...state.posts]
+                }else{
+                    state.status='error'
+                    console.log('post : fail to create!')
+                }
+            })
     }
 })
 export default postSlice.reducer
 export const {addPost,addReaction} =postSlice.actions
-export const getAllPost= state => state.posts
+export const getAllPost= state => state.posts.posts
+export const getStatus=state => state.posts.status
+export const getError=state => state.posts.error
